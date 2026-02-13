@@ -1,0 +1,1094 @@
+<!-- MentalCardMaker créé par SnoutyCode. Tous droits réservés. -->
+
+<!-------------SOMMAIRE------------ CSS : L20 à L266 HTML : L270 à L371 JS : L372
+à END Fonctions : Déclaration des données (title et name) : L294 à L297 Zoom,
+Drag et Séléction : L300 à L350 polarToCartesian getNodeRadius
+shouldUseRectangle getNodeDimensions update addChild renameNode deleteNode
+findParentAndDelete renameMap changeColor confirmColor renameRootNode
+cancelColor exportPNG importData exportData renameMapFromInput setMapName
+handleMapNameKey showMore closeAbout handleToolbarAction -->
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+      charset="utf-8"
+    />
+    <title>Carte mentale interactive</title>
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="https://cdn-icons-png.flaticon.com/512/5230/5230593.png"
+    />
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+      }
+
+      path {
+        fill: none;
+        stroke: #555;
+        stroke-width: 2px;
+      }
+
+      circle {
+        fill: #85cef6;
+        stroke: #333;
+        stroke-width: 2px;
+        cursor: pointer;
+      }
+
+      circle.selected {
+        stroke: black !important;
+        stroke-width: 2px !important;
+        filter: brightness(0.8);
+      }
+
+      rect {
+        fill: #b3e5ff;
+        stroke: #333;
+        stroke-width: 2px;
+        cursor: pointer;
+        rx: 8;
+      }
+
+      rect.selected {
+        stroke: black !important;
+        stroke-width: 2px !important;
+        filter: brightness(0.8);
+      }
+
+      text {
+        font-size: 13px;
+        pointer-events: none;
+        fill: #000;
+      }
+
+      #toolbar {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      button {
+        margin: 2px;
+        min-height: 44px;
+      }
+      .toolbar-btn {
+        background: #f1f3f4;
+        color: #202124;
+        border: 1px solid #dadce0;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3);
+        transition: all 0.2s;
+      }
+
+      .toolbar-btn:hover {
+        background: #e8f0fe;
+        border-color: #1a73e8;
+        transform: translateY(-1px);
+      }
+
+      .toolbar-btn:active {
+        background: #d2e3fc;
+        transform: translateY(0);
+      }
+
+      .color-row {
+        display: flex;
+        gap: 70px;
+        justify-content: center;
+        margin-top: 10px;
+      }
+
+      .color-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .color-item label {
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
+
+      .color-item input[type="color"] {
+        width: 80px;
+        height: 80px;
+        border: none;
+        cursor: pointer;
+      }
+
+      .font-style-row {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 10px;
+        font-size: 13px;
+      }
+
+      #colorPickerContainer {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 24px 28px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        display: none;
+        text-align: center;
+        width: 360px;
+        max-width: 90vw;
+      }
+
+      #colorPickerContainer p {
+        margin-bottom: 12px;
+      }
+
+      #colorPickerContainer.show {
+        display: block;
+      }
+
+      #colorPickerContainer input[type="color"] {
+        width: 100px;
+        height: 100px;
+        border: none;
+        cursor: pointer;
+        margin-bottom: 15px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      #colorPickerContainer button {
+        margin: 5px;
+        padding: 8px 16px;
+        cursor: pointer;
+      }
+      #toolbar select {
+        padding: 6px 10px;
+        font-size: 14px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      #mapNameInput {
+        font-size: 16px;
+        font-weight: 500;
+        padding: 6px 8px;
+        background-color: #f1f3f4;
+        border: 1px solid #dadce0;
+        box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3);
+        border-radius: 6px;
+      }
+
+      #mapNameInput:focus {
+        outline: none;
+        border-color: #1a73e8;
+        background: #f1f5ff;
+      }
+      #toolbarActions {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 20;
+        background: white;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+      }
+      #aboutContainer {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        display: none;
+        text-align: center;
+        max-width: 320px;
+      }
+
+      #aboutContainer.show {
+        display: block;
+      }
+
+      #aboutContainer h3 {
+        margin-top: 0;
+      }
+
+      #aboutContainer a {
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      #aboutContainer a:hover {
+        text-decoration: underline;
+      }
+
+      #aboutContainer button {
+        margin-top: 15px;
+        padding: 8px 16px;
+        cursor: pointer;
+      }
+      #aboutwebsite {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+      }
+      #fontFamilySelect {
+        width: 100%;
+        padding: 6px;
+        border-radius: 6px;
+        margin-top: 5px;
+      }
+      #AIGeneratedMCMContainer {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        display: none;
+        text-align: center;
+        max-width: 600px;
+      }
+
+      #AIGeneratedMCMContainer.show {
+        display: block;
+      }
+      /* =========================
+      VERSION MOBILE
+      ========================= */
+      @media (max-width: 768px) {
+        #toolbar {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+          width: 95%;
+          left: 50%;
+          transform: translateX(-50%);
+        }
+
+        .toolbar-btn,
+        #toolbar select,
+        #mapNameInput {
+          font-size: 18px;
+          padding: 12px;
+          width: 100%;
+        }
+
+        #aboutwebsite {
+          bottom: 20px;
+          right: 20px;
+          font-size: 16px;
+          padding: 12px 16px;
+        }
+
+        circle,
+        rect {
+          stroke-width: 3px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="toolbar">
+      <select id="toolbarActions" onchange="handleToolbarAction(this.value)">
+        <option value="">⚙️ Autres Actions…</option>
+        <option value="addChild">➕ Ajouter une bulle (A)</option>
+        <option value="renameNode">✏️ Renommer (Enter)</option>
+        <option value="deleteNode">❌ Supprimer (Delete)</option>
+        <option value="changeColor">🎨 Changer de couleur</option>
+        <option value="exportData">📥 Enregistrer Sous (F7)</option>
+        <option value="importData">📤 Importer (I)</option>
+        <option value="exportPNG">🖼️ Exporter en PNG</option>
+      </select>
+      <button class="toolbar-btn" onclick="addChild()">
+        ➕ Ajouter une bulle (A)
+      </button>
+      <button class="toolbar-btn" onclick="renameNode()">
+        ✏️ Renommer la bulle (Enter)
+      </button>
+      <button class="toolbar-btn" onclick="changeColor()">
+        🎨 Changer de couleur
+      </button>
+
+      <input
+        type="text"
+        id="mapNameInput"
+        placeholder="Nom du document"
+        value="Ma carte"
+        onblur="renameMapFromInput()"
+        onkeydown="handleMapNameKey(event)"
+      />
+    </div>
+
+    <input type="file" id="fileInput" accept=".json" style="display: none" />
+
+    <button id="aboutwebsite" class="toolbar-btn" onclick="showMore()">
+      En savoir plus
+    </button>
+
+    <div id="aboutContainer">
+      <h3>À propos</h3>
+      <p>Site web créé par SnoutyCode</p>
+      <p>
+        Cette carte mentale interactive a été conçue pour organiser vos idées.
+      </p>
+      <p>
+        Compteur de visites
+        <a href="http://www.mon-compteur.fr"
+          ><img
+            src="http://www.mon-compteur.fr/html_c01genv2-246312-2"
+            border="0"
+        /></a>
+      </p>
+      <button
+        id="AIGeneratedMCMButton"
+        class="toolbar-btn"
+        onclick="showMoreIA()"
+      >
+        En savoir plus sur les cartes mentales générées par IA :
+      </button>
+      <button onclick="closeAbout()" class="toolbar-btn">✕ Fermer</button>
+    </div>
+
+    <div id="AIGeneratedMCMContainer">
+      <p>
+        Pour générer une carte mentale grâce à l'IA, allez d'abord sur une IA de
+        votre choix (ChatGPT, Mistral, Gemini, ...) puis entrer le prompt
+        ci-dessous que vous aurez juste à compléter avec le sujet que vous
+        voulez.Cela vous générera un fichier JSON. Copiez-collez ensuite ce code
+        dans un éditeur de texte ou de code (Bloc-Notes, VSCode, ...) et
+        enregsitrez le fichier sur votre ordinateur. Ensuite, vous aurez juste à
+        cliquer sur Importer (I) pour générer la carte mentale.
+      </p>
+      <br />
+      <p>
+        Prompt : "Génère moi un fichier JSON à télécharger qui contient une
+        carte mentale sur (SUJET) sous cette forme : sous cette forme : {
+        "title": "Ma carte mentale", "name": "Ma carte mentale", "x_manual": 0,
+        "y_manual": 0, "color": "#b3e5ff", "textColor": "#000000", "fontFamily":
+        "Arial, sans-serif", "fontBold": false, "fontItalic": false,
+        "fontUnderline": false, "children": [ { "name": "Sujet", "x_manual": 57,
+        "y_manual": -208, "color": "#63d930", "textColor": "#000000",
+        "fontFamily": "Arial, sans-serif", "fontBold": false, "fontItalic":
+        false, "fontUnderline": false }, { "name": "Sujet", "x_manual": -145,
+        "y_manual": 87, "color": "#cdea3e", "textColor": "#000000",
+        "fontFamily": "Arial, sans-serif", "fontBold": false, "fontItalic":
+        false, "fontUnderline": false } ] }"
+      </p>
+      <p style="font-weight: bold">Exemple :</p>
+      <img src="ma_carte_mentale.png" alt="Exemple carte mentale" width="250" />
+      <br />
+      <br />
+      <button onclick="closeAboutIA()" class="toolbar-btn">✕ Fermer</button>
+    </div>
+
+    <div id="colorPickerContainer">
+      <p><strong>Couleurs</strong></p>
+
+      <div class="color-row">
+        <div class="color-item">
+          <label>🎨 Bulle</label>
+          <input type="color" id="colorPicker" />
+        </div>
+
+        <div class="color-item">
+          <label>✏️ Texte</label>
+          <input type="color" id="textColorPicker" />
+        </div>
+      </div>
+
+      <hr style="margin: 15px 0" />
+
+      <p><strong>Police</strong></p>
+
+      <select id="fontFamilySelect">
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="Times New Roman, serif">Times New Roman</option>
+        <option value="Verdana, sans-serif">Verdana</option>
+        <option value="Courier New, monospace">Courier New</option>
+      </select>
+
+      <div class="font-style-row">
+        <label>
+          <input type="checkbox" id="fontBold" />
+          Gras
+        </label>
+        <label>
+          <input type="checkbox" id="fontItalic" />
+          Italique
+        </label>
+        <label>
+          <input type="checkbox" id="fontUnderline" />
+          Souligné
+        </label>
+      </div>
+
+      <div style="margin-top: 15px">
+        <button onclick="confirmColor()">✓ Appliquer</button>
+        <button onclick="cancelColor()">✕ Annuler</button>
+      </div>
+    </div>
+
+    <svg></svg>
+
+    <script>
+      // =======================
+      // Données
+      // =======================
+      let data = {
+        title: "Ma carte mentale", //  titre du document
+        name: "Ma carte mentale", //  nœud racine
+      };
+
+      // =======================
+      // SVG & Zoom
+      // =======================
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      const svg = d3.select("svg").attr("width", width).attr("height", height);
+
+      const g = svg
+        .append("g")
+        .attr("transform", `translate(${width / 2}, ${height / 2})`);
+
+      svg.call(
+        d3
+          .zoom()
+          .scaleExtent([0.3, 3])
+          .on("zoom", (event) => g.attr("transform", event.transform)),
+      );
+
+      document.title = data.title;
+      document.getElementById("mapNameInput").value = data.title;
+
+      // =======================
+      // Sélection
+      // =======================
+      let selectedNodeData = null;
+
+      function isSelectedNode(d) {
+        return selectedNodeData === d.data;
+      }
+
+      // =======================
+      // Drag des nœuds
+      // =======================
+      const drag = d3
+        .drag()
+        .touchable(true)
+        .on("start", (event, d) => {
+          event.sourceEvent.stopPropagation();
+          if (d.data.x_manual === undefined) {
+            const pos = polarToCartesian(d.x, d.y);
+            d.data.x_manual = pos.x;
+            d.data.y_manual = pos.y;
+          }
+        })
+        .on("drag", (event, d) => {
+          d.data.x_manual += event.dx;
+          d.data.y_manual += event.dy;
+          update();
+        });
+
+      // =======================
+      // Utilitaires
+      // =======================
+
+      function polarToCartesian(angle, radius) {
+        return {
+          x: Math.cos(angle - Math.PI / 2) * radius,
+          y: Math.sin(angle - Math.PI / 2) * radius,
+        };
+      }
+
+      function getNodeRadius(d) {
+        const textLength = d.data.name.length;
+        const isMobile = window.innerWidth < 768;
+
+        const minRadius =
+          d.depth === 0 ? (isMobile ? 45 : 35) : isMobile ? 28 : 20;
+        const maxRadius = isMobile ? 100 : 80;
+
+        const estimatedWidth = textLength * (isMobile ? 9 : 7) + 10;
+        const requiredRadius = estimatedWidth / 2;
+
+        return Math.min(maxRadius, Math.max(minRadius, requiredRadius));
+      }
+
+      function shouldUseRectangle(d) {
+        return d.data.name.length > 20;
+      }
+
+      function getNodeDimensions(d) {
+        const padding = 12;
+        const charWidth = 8.5;
+        const lineHeight = 18;
+        const lineSpacing = 1.2;
+        const maxWidth = 200;
+
+        if (shouldUseRectangle(d)) {
+          const availableWidth = maxWidth - padding * 2;
+          const maxCharsPerLine = Math.floor(availableWidth / charWidth);
+          const lines = wrapText(d.data.name, maxCharsPerLine);
+          const maxLineLength = Math.max(...lines.map((line) => line.length));
+          const actualWidth = maxLineLength * charWidth + padding * 2;
+          const totalHeight =
+            lines.length * lineHeight * lineSpacing + padding * 2;
+
+          return {
+            width: actualWidth,
+            height: totalHeight,
+            lines: lines,
+          };
+        }
+
+        return {
+          radius: getNodeRadius(d),
+        };
+      }
+
+      function wrapText(text, maxCharsPerLine) {
+        const lines = [];
+        let currentLine = "";
+        const words = text.split(" ");
+
+        for (let word of words) {
+          if ((currentLine + word).length > maxCharsPerLine) {
+            if (currentLine) lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = currentLine ? currentLine + " " + word : word;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+        return lines;
+      }
+
+      // =======================
+      // Rendu principal
+      // =======================
+      function update() {
+        g.selectAll("*").remove();
+
+        const root = d3.hierarchy(data);
+        const radius = Math.min(width, height) / 2 - 80;
+
+        d3.tree().size([2 * Math.PI, radius])(root);
+
+        // -------- Liens --------
+        g.selectAll("path")
+          .data(root.links())
+          .enter()
+          .append("path")
+          .attr("d", (d) => {
+            const source =
+              d.source.data.x_manual !== undefined
+                ? { x: d.source.data.x_manual, y: d.source.data.y_manual }
+                : polarToCartesian(d.source.x, d.source.y);
+
+            const target =
+              d.target.data.x_manual !== undefined
+                ? { x: d.target.data.x_manual, y: d.target.data.y_manual }
+                : polarToCartesian(d.target.x, d.target.y);
+
+            return `M${source.x},${source.y} L${target.x},${target.y}`;
+          });
+
+        // -------- Nœuds --------
+        const node = g
+          .selectAll("g.node")
+          .data(root.descendants())
+          .enter()
+          .append("g")
+          .attr("class", "node")
+          .attr("transform", (d) => {
+            if (d.data.x_manual !== undefined) {
+              return `translate(${d.data.x_manual}, ${d.data.y_manual})`;
+            }
+            return `rotate(${(d.x * 180) / Math.PI - 90}) translate(${d.y},0)`;
+          })
+          .call(drag);
+
+        node
+          .filter((d) => !shouldUseRectangle(d))
+          .append("circle")
+          .attr("r", (d) => getNodeRadius(d))
+          .style("fill", (d) => d.data.color || "#b3e5ff")
+          .classed("selected", (d) => isSelectedNode(d))
+          .on("click", (event, d) => {
+            event.stopPropagation();
+            selectedNodeData = d.data;
+            update();
+          });
+
+        node
+          .filter((d) => shouldUseRectangle(d))
+          .append("rect")
+          .attr("x", (d) => -getNodeDimensions(d).width / 2)
+          .attr("y", (d) => -getNodeDimensions(d).height / 2)
+          .attr("width", (d) => getNodeDimensions(d).width)
+          .attr("height", (d) => getNodeDimensions(d).height)
+          .style("fill", (d) => d.data.color || "#b3e5ff")
+          .classed("selected", (d) => isSelectedNode(d))
+          .on("click", (event, d) => {
+            event.stopPropagation();
+            selectedNodeData = d.data;
+            update();
+          });
+
+        node
+          .append("text")
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("transform", (d) => {
+            if (d.data.x_manual !== undefined) return null;
+            return `rotate(${-((d.x * 180) / Math.PI - 90)})`;
+          })
+          .style("pointer-events", "none")
+          .style("font-size", "13px")
+          .style("fill", (d) => d.data.textColor || "#000")
+          .style("fill", (d) => d.data.textColor || "#000")
+          .style("font-family", (d) => d.data.fontFamily || "Arial, sans-serif")
+          .style("font-weight", (d) => (d.data.fontBold ? "bold" : "normal"))
+          .style("font-style", (d) => (d.data.fontItalic ? "italic" : "normal"))
+          .style("text-decoration", (d) =>
+            d.data.fontUnderline ? "underline" : "none",
+          )
+
+          .each(function (d) {
+            const padding = 12;
+            const charWidth = 8.5;
+            const maxWidth = 200;
+            const lineHeight = 18;
+
+            let lines;
+            if (shouldUseRectangle(d)) {
+              const availableWidth = maxWidth - padding * 2;
+              const maxCharsPerLine = Math.floor(availableWidth / charWidth);
+              lines = wrapText(d.data.name, maxCharsPerLine);
+            } else {
+              lines = wrapText(d.data.name, 10);
+            }
+
+            const lineSpacing = 1.2;
+
+            d3.select(this)
+              .selectAll("tspan")
+              .data(lines)
+              .enter()
+              .append("tspan")
+              .attr("x", 0)
+              .attr("dy", (d, i) => (i === 0 ? 0 : lineSpacing + "em"))
+              .text((line) => line);
+          });
+      }
+
+      // =======================
+      // Actions UI
+      // =======================
+      function addChild() {
+        if (!selectedNodeData) return alert("Sélectionne un nœud");
+
+        const name = prompt("Nom du nouvel élément ?");
+        if (!name) return;
+
+        selectedNodeData.children = selectedNodeData.children || [];
+        const newChild = { name };
+
+        if (selectedNodeData.x_manual !== undefined) {
+          newChild.x_manual = selectedNodeData.x_manual + 100;
+          newChild.y_manual = selectedNodeData.y_manual + 50;
+        }
+
+        selectedNodeData.children.push(newChild);
+        update();
+      }
+
+      function renameNode() {
+        if (!selectedNodeData) return alert("Sélectionne une bulle");
+
+        const newName = prompt(
+          "Nouveau texte pour cette bulle ?",
+          selectedNodeData.name,
+        );
+        if (newName === null) return;
+
+        selectedNodeData.name = newName;
+        update();
+      }
+
+      function deleteNode() {
+        if (!selectedNodeData)
+          return alert("Impossible de supprimer la racine");
+
+        function findParentAndDelete(node) {
+          if (!node.children) return false;
+          const index = node.children.indexOf(selectedNodeData);
+          if (index !== -1) {
+            node.children.splice(index, 1);
+            return true;
+          }
+          for (let child of node.children) {
+            if (findParentAndDelete(child)) return true;
+          }
+          return false;
+        }
+
+        if (data === selectedNodeData) {
+          return alert("Impossible de supprimer la racine");
+        }
+
+        findParentAndDelete(data);
+        selectedNodeData = null;
+        update();
+      }
+
+      function renameMap() {
+        const newName = prompt("Nouveau nom du document ?", data.title);
+        if (newName === null) return; // Annulation
+
+        setMapName(newName || "Sans titre");
+        document.getElementById("mapNameInput").value = data.title;
+      }
+
+      function changeColor() {
+        if (!selectedNodeData) {
+          return alert("Sélectionne d'abord un nœud pour changer sa couleur !");
+        }
+
+        const container = document.getElementById("colorPickerContainer");
+        const colorInput = document.getElementById("colorPicker");
+        const textColorInput = document.getElementById("textColorPicker");
+
+        colorInput.value = selectedNodeData.color || "#b3e5ff";
+
+        textColorInput.value = selectedNodeData.textColor || "#000000";
+
+        container.classList.add("show");
+
+        document.getElementById("fontFamilySelect").value =
+          selectedNodeData.fontFamily || "Arial, sans-serif";
+
+        document.getElementById("fontBold").checked =
+          selectedNodeData.fontBold || false;
+
+        document.getElementById("fontItalic").checked =
+          selectedNodeData.fontItalic || false;
+
+        document.getElementById("fontUnderline").checked =
+          selectedNodeData.fontUnderline || false;
+      }
+
+      function confirmColor() {
+        const colorPicker = document.getElementById("colorPicker");
+        const textColorPicker = document.getElementById("textColorPicker");
+
+        if (selectedNodeData) {
+          selectedNodeData.color = colorPicker.value;
+          selectedNodeData.textColor = textColorPicker.value;
+          selectedNodeData.fontFamily =
+            document.getElementById("fontFamilySelect").value;
+
+          selectedNodeData.fontBold =
+            document.getElementById("fontBold").checked;
+
+          selectedNodeData.fontItalic =
+            document.getElementById("fontItalic").checked;
+
+          selectedNodeData.fontUnderline =
+            document.getElementById("fontUnderline").checked;
+
+          update();
+        }
+
+        cancelColor();
+      }
+
+      function renameRootNode(newName) {
+        if (!newName) return;
+        data.name = newName;
+        update();
+      }
+
+      function cancelColor() {
+        const container = document.getElementById("colorPickerContainer");
+        container.classList.remove("show");
+      }
+
+      function exportPNG() {
+        const name = data.title?.trim() || "mindmap";
+
+        const svg = document.querySelector("svg");
+
+        // 🔹 Clone du SVG
+        const clone = svg.cloneNode(true);
+
+        // 🔹 Injecter les styles directement dans le SVG
+        const style = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "style",
+        );
+        style.textContent = `
+        path {
+          fill: none;
+          stroke: #555;
+          stroke-width: 2px;
+        }
+        circle, rect {
+          stroke: #333;
+          stroke-width: 2px;
+        }
+        text {
+          fill: #000;
+          font-size: 13px;
+          font-family: Arial, sans-serif;
+        }
+      `;
+        clone.insertBefore(style, clone.firstChild);
+
+        // 🔹 Calculer la bounding box du contenu réel
+        const bbox = svg.getBBox();
+        const padding = 40;
+
+        clone.setAttribute(
+          "viewBox",
+          `${bbox.x - padding} ${bbox.y - padding}
+         ${bbox.width + padding * 2} ${bbox.height + padding * 2}`,
+        );
+
+        const width = bbox.width + padding * 2;
+        const height = bbox.height + padding * 2;
+
+        clone.setAttribute("width", width);
+        clone.setAttribute("height", height);
+
+        // 🔹 Sérialisation
+        const serializer = new XMLSerializer();
+        const svgStr = serializer.serializeToString(clone);
+
+        // 🔹 Canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+        const svgBlob = new Blob([svgStr], {
+          type: "image/svg+xml;charset=utf-8",
+        });
+        const url = URL.createObjectURL(svgBlob);
+
+        img.onload = function () {
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+
+          const name =
+            document.getElementById("mapNameInput")?.value.trim() || "mindmap";
+
+          const safeName = name.replace(/[^\w\d]+/g, "_").toLowerCase();
+
+          const link = document.createElement("a");
+          link.download = safeName + ".png";
+          link.href = canvas.toDataURL("image/png");
+          link.click();
+        };
+
+        img.src = url;
+      }
+
+      function importData() {
+        const fileInput = document.getElementById("fileInput");
+        fileInput.click();
+      }
+
+      function exportData() {
+        const jsonData = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonData], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const fileName = (data.title || "carte-mentale").trim() + ".json";
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            try {
+              const importedData = JSON.parse(event.target.result);
+              if (!importedData.name) {
+                return alert(
+                  "Fichier JSON invalide. Assurez-vous qu'il contient une propriété 'name'.",
+                );
+              }
+              data = importedData;
+              selectedNodeData = null;
+              update();
+              alert("Carte mentale importée avec succès!");
+            } catch (error) {
+              alert("Erreur lors de la lecture du fichier: " + error.message);
+            }
+          };
+          reader.readAsText(file);
+          e.target.value = "";
+        });
+
+      function renameMapFromInput() {
+        const input = document.getElementById("mapNameInput");
+        const newName = input.value.trim();
+        if (!newName) return;
+
+        setMapName(newName);
+      }
+
+      function setMapName(name) {
+        data.title = name;
+        document.title = name;
+        document.getElementById("mapNameInput").value = name;
+      }
+
+      function handleMapNameKey(event) {
+        if (event.key === "Enter") {
+          event.target.blur();
+        }
+      }
+
+      function showMore() {
+        document.getElementById("aboutContainer").classList.add("show");
+      }
+
+      function closeAbout() {
+        document.getElementById("aboutContainer").classList.remove("show");
+      }
+
+      function showMoreIA() {
+        document.getElementById("aboutContainer").classList.remove("show");
+
+        document
+          .getElementById("AIGeneratedMCMContainer")
+          .classList.add("show");
+      }
+
+      function closeAboutIA() {
+        document
+          .getElementById("AIGeneratedMCMContainer")
+          .classList.remove("show");
+      }
+
+      function handleToolbarAction(action) {
+        if (!action) return;
+
+        switch (action) {
+          case "addChild":
+            addChild();
+            break;
+          case "renameNode":
+            renameNode();
+            break;
+          case "deleteNode":
+            deleteNode();
+            break;
+          case "changeColor":
+            changeColor();
+            break;
+          case "exportData":
+            exportData();
+            break;
+          case "importData":
+            importData();
+            break;
+          case "exportPNG":
+            exportPNG();
+            break;
+        }
+
+        document.getElementById("toolbarActions").value = "";
+      }
+
+      // =======================
+      // Raccourcis clavier
+      // =======================
+      document.addEventListener("keydown", function (event) {
+        if (
+          event.target.tagName === "INPUT" ||
+          event.target.tagName === "TEXTAREA"
+        ) {
+          return;
+        }
+
+        switch (event.key.toUpperCase()) {
+          case "DELETE":
+            event.preventDefault();
+            deleteNode();
+            break;
+          case "ENTER":
+            event.preventDefault();
+            renameNode();
+            break;
+          case "A":
+            event.preventDefault();
+            addChild();
+            break;
+          case "I":
+            event.preventDefault();
+            importData();
+            break;
+          case "F7":
+            event.preventDefault();
+            exportData();
+            break;
+        }
+      });
+
+      // =======================
+      // Initialisation
+      // =======================
+      update();
+    </script>
+  </body>
+</html>
